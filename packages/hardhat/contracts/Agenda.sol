@@ -86,17 +86,6 @@ contract Agenda is Ownable {
         return result;
     }
 
-    function _timeslotAvailable(uint256 bookingTime) internal view returns (bool) {
-        if (bookingTime < bookableTimeSlots[0] || bookingTime > bookableTimeSlots[bookableTimeSlots.length - 1]) {
-            return false;
-        }
-        uint256 diff = bookingTime - bookableTimeSlots[0];
-        if (diff % duration == 0) {
-            return bookings[bookingTime].booker == address(0);
-        }
-        return false;
-    }
-
     function getMyBookings() public view returns (uint256[] memory, Booking[] memory) {
         Booking storage tmp;
         // We can only create fixed sized memory arrays, so we need to have the length of the new array beforehand
@@ -114,9 +103,20 @@ contract Agenda is Ownable {
             tmp = bookings[bookableTimeSlots[i]];
             if (tmp.booker == msg.sender) {
                 timestamps[counter] = bookableTimeSlots[i];
-                bookingInfo[counter] = tmp;
+                bookingInfo[counter++] = tmp;
             }
         }
         return (timestamps, bookingInfo);
+    }
+
+    function _timeslotAvailable(uint256 bookingTime) internal view returns (bool) {
+        if (bookingTime < bookableTimeSlots[0] || bookingTime > bookableTimeSlots[bookableTimeSlots.length - 1]) {
+            return false;
+        }
+        uint256 diff = bookingTime - bookableTimeSlots[0];
+        if (diff % duration == 0) {
+            return bookings[bookingTime].booker == address(0);
+        }
+        return false;
     }
 }

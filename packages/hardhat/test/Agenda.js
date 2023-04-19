@@ -80,4 +80,50 @@ describe("Agenda contract", () => {
       }
     })
   });
+
+  describe("book()", () => {
+    const firstBookableTime = Date.now();
+    const lastBookableTime = firstBookableTime + 4 * 60 * 60 * 1000; // 4 hours later
+
+    it("cannot make booking on a timestamp that is already booked", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      // booking the first timestamp
+      await agendaContract.connect(booker).book(firstBookableTime, { value: priceOfService });
+      
+      await expect(agendaContract.book(firstBookableTime, { value: priceOfService })).to.be.revertedWith("The selected timeslot isn't available!");
+    });
+
+    it("cannot make booking with less value than the price of the service", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      await expect(agendaContract.connect(booker).book(firstBookableTime, { value: ethers.utils.parseEther("0.5") })).to.be.revertedWith("Should pay the value of the service in order to make a booking!");
+    });
+
+    it("receives the value of the service, saves the booking and emits Booked event", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      await agendaContract.connect(booker);
+      let contractBalance = await ethers.provider.getBalance(agendaContract.address);
+      expect(contractBalance).to.be.equal(ethers.utils.parseEther("0.0"));
+      let availableTimeslots = await agendaContract.getAvailableTimeSlots();
+      expect(availableTimeslots.length).to.equal(7);
+      expect(availableTimeslots[0]).to.equal(firstBookableTime);
+      let bookersBookings = await agendaContract.connect(booker).getMyBookings();
+      expect(bookersBookings.length).to.equal(2);
+      expect(bookersBookings[0].length).to.equal(0);
+      expect(bookersBookings[1].length).to.equal(0);
+
+      await expect(agendaContract.connect(booker).book(firstBookableTime, { value: priceOfService })).to.emit(agendaContract, "Booked").withArgs(booker.address, firstBookableTime, priceOfService);
+      contractBalance = await ethers.provider.getBalance(agendaContract.address);
+      expect(contractBalance).to.be.equal(priceOfService);
+      availableTimeslots = await agendaContract.getAvailableTimeSlots();
+      expect(availableTimeslots.length).to.equal(6);
+      expect(availableTimeslots[0]).not.equal(firstBookableTime);
+      bookersBookings = await agendaContract.connect(booker).getMyBookings();
+      expect(bookersBookings[0].length).to.equal(1);
+      expect(bookersBookings[1].length).to.equal(1);
+      expect(bookersBookings[0][0].toNumber()).to.equal(firstBookableTime);
+      expect(bookersBookings[1][0].booker).to.equal(booker.address);
+      expect(bookersBookings[1][0].confirmed).to.be.false;
+      expect(bookersBookings[1][0].payedAmount).to.equal(priceOfService);
+    });
+  });
 });
