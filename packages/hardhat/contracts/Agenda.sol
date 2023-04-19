@@ -2,6 +2,7 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
+import 'hardhat/console.sol';
 
 contract Agenda is Ownable {
 
@@ -10,7 +11,7 @@ contract Agenda is Ownable {
     // Duration of the service
     uint256 public duration;
     // Can cancel a booking before the start date of that minus the timestamp below
-    uint256 cancellableBefore;
+    uint256 public cancellableBefore;
     mapping(uint256 => Booking) bookings;
     uint256[] bookableTimeSlots;
 
@@ -26,7 +27,7 @@ contract Agenda is Ownable {
     constructor(uint256 _timestampOfFirstBooking, uint256 _timestampOfLastBooking, uint256 _priceOfService, uint256 _duration, uint256 _cancellableBefore) Ownable() {
         require(_timestampOfFirstBooking + _duration <= _timestampOfLastBooking, "Invalid time interval provided!");
         uint256 tmp = _timestampOfFirstBooking;
-        while(tmp < _timestampOfLastBooking - _duration) {
+        while(tmp <= _timestampOfLastBooking) {
             bookableTimeSlots.push(tmp);
             tmp += _duration;
         }
