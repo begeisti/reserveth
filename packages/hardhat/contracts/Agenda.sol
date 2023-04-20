@@ -2,7 +2,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
 import '@openzeppelin/contracts/access/Ownable.sol';
-import 'hardhat/console.sol';
 
 contract Agenda is Ownable {
 
@@ -25,7 +24,7 @@ contract Agenda is Ownable {
     event BookingCancelled(address booker, uint256 timestamp, uint256 refundedAmount);
 
     constructor(uint256 _timestampOfFirstBooking, uint256 _timestampOfLastBooking, uint256 _priceOfService, uint256 _duration, uint256 _cancellableBefore) Ownable() {
-        require(_timestampOfFirstBooking + _duration <= _timestampOfLastBooking, "Invalid time interval provided!");
+        require(_timestampOfFirstBooking <= _timestampOfLastBooking, "Invalid time interval provided!");
         uint256 tmp = _timestampOfFirstBooking;
         while(tmp <= _timestampOfLastBooking) {
             bookableTimeSlots.push(tmp);
@@ -47,12 +46,13 @@ contract Agenda is Ownable {
         require(bookings[timestamp].booker != address(0), "The provided time isn't booked!");
         require(!bookings[timestamp].confirmed, "Booking already confirmed!");
         bookings[timestamp].confirmed = true;
-        emit BookingConfirmed(msg.sender, timestamp);
+        emit BookingConfirmed(bookings[timestamp].booker, timestamp);
     }
 
     function cancelBooking(uint256 timestamp) public {
         require(bookings[timestamp].booker == msg.sender, "Booking doesn't belong to you!");
-        require(block.timestamp + cancellableBefore <= timestamp, "Too late to cancel this booking!");
+        // convert block.timestamp from seconds to ms
+        require((block.timestamp * 1000 + cancellableBefore) <= timestamp, "Too late to cancel this booking!");
         uint256 payedAmount = bookings[timestamp].payedAmount;
         address booker = bookings[timestamp].booker;
         delete bookings[timestamp];
