@@ -19,6 +19,7 @@ contract Agenda is Ownable {
         uint256 payedAmount;
         bool confirmed;
     }
+
     event Booked(address booker, uint256 timestamp, uint256 payedAmount);
     event BookingConfirmed(address booker, uint256 timestamp);
     event BookingCancelled(address booker, uint256 timestamp, uint256 refundedAmount);
@@ -36,6 +37,7 @@ contract Agenda is Ownable {
     }
 
     function book(uint256 timestamp) public payable {
+        require(timestamp >= block.timestamp * 1000, "Only future timeslots are bookable!");
         require(_timeslotAvailable(timestamp), "The selected timeslot isn't available!");
         require(msg.value >= priceOfService, "Should pay the value of the service in order to make a booking!");
         bookings[timestamp] = Booking(msg.sender, msg.value, false);
@@ -107,6 +109,12 @@ contract Agenda is Ownable {
             }
         }
         return (timestamps, bookingInfo);
+    }
+
+    function withdraw(uint256 amount) public onlyOwner {
+        require(amount <= address(this).balance, "Amount bigger than balance!");
+        (bool success, ) = owner().call{value: amount}("");
+        require(success, "Couldn't withdraw requested amount!");
     }
 
     function _timeslotAvailable(uint256 bookingTime) internal view returns (bool) {

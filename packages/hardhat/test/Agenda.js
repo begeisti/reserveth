@@ -6,7 +6,7 @@ describe("Agenda contract", () => {
   const priceOfService = ethers.utils.parseEther("1.0");
   const durationOfService = 40 * 60 * 1000; // 40 minutes in ms
   const cancellableBefore = 60 * 60 * 1000; // 60 minutes in ms
-  const firstBookableTime = Date.now();
+  const firstBookableTime = Date.now() + 60000; // 1 minunte from now
   const lastBookableTime = firstBookableTime + 4 * 60 * 60 * 1000; // 4 hours later
 
   deploy = async (firstBookableTimestamp, lastBookableTimestamp, price, duration, cancellableBefore) => {
@@ -87,6 +87,11 @@ describe("Agenda contract", () => {
   });
 
   describe("book()", () => {
+    it("should revert when timestamp is in the past", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);  
+      await expect(agendaContract.connect(booker).book(firstBookableTime - 120000, { value: priceOfService })).to.be.revertedWith("Only future timeslots are bookable!");
+    });
+
     it("should revert when an invalid timestamp was sent", async () => {
       const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
       await expect(agendaContract.connect(booker).book(firstBookableTime + 15 * 60 * 1000, { value: priceOfService }, )).to.be.revertedWith("The selected timeslot isn't available!");
@@ -222,4 +227,62 @@ describe("Agenda contract", () => {
       await expect(agendaContract.connect(booker).book(bookingTimestamp, { value: priceOfService })).to.not.be.reverted;
     });
   });
+
+  describe("getMyBookings()", () => {
+    it("returns a 2d array with 2 empty lists in it in case there are no bookings for the ", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+
+      const bookings = await agendaContract.connect(booker).getMyBookings();
+
+      expect(bookings).to.have.lengthOf(2);
+      expect(bookings[0]).to.be.empty;
+      expect(bookings[1]).to.be.empty
+    });
+
+    it("returns the details of all the available booking for the booker", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      await agendaContract.connect(booker).book(firstBookableTime, { value: priceOfService });
+      await agendaContract.connect(booker).book(firstBookableTime + durationOfService, { value: priceOfService });
+
+      const bookings = await agendaContract.connect(booker).getMyBookings();
+
+      expect(bookings).to.have.lengthOf(2);
+      expect(bookings[0]).to.have.lengthOf(2);
+      expect(bookings[0].map(bn => bn.toNumber())).to.have.ordered.members([firstBookableTime, firstBookableTime + durationOfService]);
+      expect(bookings[1]).to.have.lengthOf(2);
+      expect(bookings[1][0].booker).to.equal(booker.address);
+      expect(bookings[1][0].payedAmount).to.equal(priceOfService);
+      expect(bookings[1][0].confirmed).to.be.false;
+      expect(bookings[1][1].booker).to.equal(booker.address);
+      expect(bookings[1][1].payedAmount).to.equal(priceOfService);
+      expect(bookings[1][1].confirmed).to.be.false;
+    });
+  })
+
+  describe("withdraw()", () => {
+    it("should revert when non-owner is calling the function", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      await expect(agendaContract.connect(booker).withdraw(ethers.utils.parseEther("1.0"))).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+
+    it("should revert when amount is bigger than the balance of the contract", async () => {
+      const { agendaContract } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      await expect(agendaContract.withdraw(ethers.utils.parseEther("1.0"))).to.be.revertedWith("Amount bigger than balance!");
+    });
+
+    it("owner can drain the contract", async () => {
+      const { agendaContract, booker, owner } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      await agendaContract.connect(booker).book(firstBookableTime, { value: priceOfService });
+      let contractBalance = await ethers.provider.getBalance(agendaContract.address);
+      expect(contractBalance).to.equal(priceOfService);
+      const ownersInitialBalance = await ethers.provider.getBalance(owner.address);
+
+      await agendaContract.withdraw(priceOfService);
+
+      contractBalance = await ethers.provider.getBalance(agendaContract.address);
+      expect(contractBalance).to.equal(ethers.utils.parseEther("0"));
+      const ownersModifiedBalance = await ethers.provider.getBalance(owner.address);
+      expect(ownersModifiedBalance).to.be.greaterThan(ownersInitialBalance);
+    });
+  })
 });
