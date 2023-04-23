@@ -54,7 +54,7 @@ contract Agenda is Ownable {
     function cancelBooking(uint256 timestamp) public {
         require(bookings[timestamp].booker == msg.sender, "Booking doesn't belong to you!");
         // convert block.timestamp from seconds to ms
-        require(_bookingCancellable(timestamp), "Too late to cancel this booking!");
+        require(_timestampCancellable(timestamp), "Too late to cancel this booking!");
         uint256 payedAmount = bookings[timestamp].payedAmount;
         address booker = bookings[timestamp].booker;
         delete bookings[timestamp];
@@ -132,8 +132,7 @@ contract Agenda is Ownable {
     function _canWithdrawAmount(uint256 amount) internal view returns (bool) {
         uint256 bookingsLeft = 0;
         uint i = bookableTimeSlots.length - 1;
-        uint timestamp = block.timestamp * 1000;
-        while (bookableTimeSlots[i] >= timestamp + cancellableBefore) {
+        while (_timestampCancellable(bookableTimeSlots[i])) {
             if (bookings[bookableTimeSlots[i]].booker != address(0)) {
                 ++bookingsLeft;
             }
@@ -148,7 +147,7 @@ contract Agenda is Ownable {
         return true;
     }
 
-    function _bookingCancellable(uint256 timestamp) internal view returns (bool) {
+    function _timestampCancellable(uint256 timestamp) internal view returns (bool) {
         return block.timestamp * 1000 + cancellableBefore <= timestamp;
     }
 }

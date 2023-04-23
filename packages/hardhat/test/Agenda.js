@@ -278,7 +278,7 @@ describe("Agenda contract", () => {
       await expect(agendaContract.withdraw(ethers.utils.parseEther("1.0"))).to.be.revertedWith("Cannot withdraw that amount yet!");
     });
 
-    it("owner can drain the contract", async () => {
+    it("owner can drain the contract if there are no bookings left", async () => {
       const { agendaContract, booker, owner } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
       await agendaContract.connect(booker).book(firstBookableTime, { value: priceOfService });
       let contractBalance = await ethers.provider.getBalance(agendaContract.address);
