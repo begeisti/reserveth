@@ -270,12 +270,22 @@ describe("Agenda contract", () => {
       await expect(agendaContract.withdraw(ethers.utils.parseEther("1.0"))).to.be.revertedWith("Amount bigger than balance!");
     });
 
+    it("should revert in case there is a booking left in the future and the withdraw amount exceeds the balance of the address minus the price of service", async () => {
+      const { agendaContract, booker } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
+      const bookingTimestamp = firstBookableTime + 2 * durationOfService;
+      await agendaContract.connect(booker).book(bookingTimestamp, { value: priceOfService });
+
+      await expect(agendaContract.withdraw(ethers.utils.parseEther("1.0"))).to.be.revertedWith("Cannot withdraw that amount yet!");
+    });
+
     it("owner can drain the contract", async () => {
       const { agendaContract, booker, owner } = await deploy(firstBookableTime, lastBookableTime, priceOfService, durationOfService, cancellableBefore);
       await agendaContract.connect(booker).book(firstBookableTime, { value: priceOfService });
       let contractBalance = await ethers.provider.getBalance(agendaContract.address);
       expect(contractBalance).to.equal(priceOfService);
       const ownersInitialBalance = await ethers.provider.getBalance(owner.address);
+      // increase time with 1 hour to make the booking uncancellable
+      await hre.ethers.provider.send('evm_increaseTime', [60 * 60]);
 
       await agendaContract.withdraw(priceOfService);
 
