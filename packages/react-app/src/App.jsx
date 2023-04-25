@@ -4,7 +4,6 @@ import "antd/dist/antd.css";
 import {
   useBalance,
   useContractLoader,
-  useContractReader,
   // useOnBlock,
   useUserProviderAndSigner,
 } from "eth-hooks";
@@ -144,7 +143,7 @@ function App(props) {
   const yourLocalBalance = useBalance(localProvider, address, localProviderPollingTime);
 
   // Just plug in different 🛰 providers to get your balance on different chains:
-  const yourMainnetBalance = useBalance(mainnetProvider, address, mainnetProviderPollingTime);
+  // const yourMainnetBalance = useBalance(mainnetProvider, address, mainnetProviderPollingTime);
 
   // const contractConfig = useContractConfig();
 
@@ -156,27 +155,10 @@ function App(props) {
   // If you want to make 🔐 write transactions to your contracts, use the userSigner:
   const writeContracts = useContractLoader(userSigner, contractConfig, localChainId);
 
-  // EXTERNAL CONTRACT EXAMPLE:
-  //
-  // If you want to bring in the mainnet DAI contract it would look like:
-  const mainnetContracts = useContractLoader(mainnetProvider, contractConfig);
-
   // If you want to call a function on a new block
   // useOnBlock(mainnetProvider, () => {
   //   console.log(`⛓ A new mainnet block is here: ${mainnetProvider._lastBlockNumber}`);
   // });
-
-  // Then read your DAI balance like:
-  const myMainnetDAIBalance = useContractReader(
-    mainnetContracts,
-    "DAI",
-    "balanceOf",
-    ["0x34aA3F359A9D614239015126635CE7732c18fDF3"],
-    mainnetProviderPollingTime,
-  );
-
-  // keep track of a variable from the contract in the local React state:
-  const purpose = useContractReader(readContracts, "YourContract", "purpose", [], localProviderPollingTime);
 
   /*
   const addressFromENS = useResolveName(mainnetProvider, "austingriffith.eth");
@@ -187,41 +169,17 @@ function App(props) {
   // 🧫 DEBUG 👨🏻‍🔬
   //
   useEffect(() => {
-    if (
-      DEBUG &&
-      mainnetProvider &&
-      address &&
-      selectedChainId &&
-      yourLocalBalance &&
-      yourMainnetBalance &&
-      readContracts &&
-      writeContracts &&
-      mainnetContracts
-    ) {
+    if (DEBUG && mainnetProvider && address && selectedChainId && yourLocalBalance && readContracts && writeContracts) {
       console.log("_____________________________________ 🏗 scaffold-eth _____________________________________");
       console.log("🌎 mainnetProvider", mainnetProvider);
       console.log("🏠 localChainId", localChainId);
       console.log("👩‍💼 selected address:", address);
       console.log("🕵🏻‍♂️ selectedChainId:", selectedChainId);
       console.log("💵 yourLocalBalance", yourLocalBalance ? ethers.utils.formatEther(yourLocalBalance) : "...");
-      console.log("💵 yourMainnetBalance", yourMainnetBalance ? ethers.utils.formatEther(yourMainnetBalance) : "...");
       console.log("📝 readContracts", readContracts);
-      console.log("🌍 DAI contract on mainnet:", mainnetContracts);
-      console.log("💵 yourMainnetDAIBalance", myMainnetDAIBalance);
       console.log("🔐 writeContracts", writeContracts);
     }
-  }, [
-    mainnetProvider,
-    address,
-    selectedChainId,
-    yourLocalBalance,
-    yourMainnetBalance,
-    readContracts,
-    writeContracts,
-    mainnetContracts,
-    localChainId,
-    myMainnetDAIBalance,
-  ]);
+  }, [mainnetProvider, address, selectedChainId, yourLocalBalance, readContracts, writeContracts, localChainId]);
 
   const loadWeb3Modal = useCallback(async () => {
     //const provider = await web3Modal.connect();
@@ -316,9 +274,6 @@ function App(props) {
         <Menu.Item key="/exampleui">
           <Link to="/exampleui">ExampleUI</Link>
         </Menu.Item>
-        <Menu.Item key="/mainnetdai">
-          <Link to="/mainnetdai">Mainnet DAI</Link>
-        </Menu.Item>
         <Menu.Item key="/subgraph">
           <Link to="/subgraph">Subgraph</Link>
         </Menu.Item>
@@ -327,7 +282,12 @@ function App(props) {
       <Switch>
         <Route exact path="/">
           {/* pass in any web3 props to this Home component. For example, yourLocalBalance */}
-          <Home yourLocalBalance={yourLocalBalance} readContracts={readContracts} />
+          <Home
+            tx={tx}
+            localProviderPollingTime={localProviderPollingTime}
+            readContracts={readContracts}
+            writeContracts={writeContracts}
+          />
         </Route>
         <Route exact path="/debug">
           {/*
@@ -337,7 +297,7 @@ function App(props) {
             */}
 
           <Contract
-            name="YourContract"
+            name="Agenda"
             price={price}
             signer={userSigner}
             provider={localProvider}
@@ -365,30 +325,7 @@ function App(props) {
             tx={tx}
             writeContracts={writeContracts}
             readContracts={readContracts}
-            purpose={purpose}
           />
-        </Route>
-        <Route path="/mainnetdai">
-          <Contract
-            name="DAI"
-            customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.DAI}
-            signer={userSigner}
-            provider={mainnetProvider}
-            address={address}
-            blockExplorer="https://etherscan.io/"
-            contractConfig={contractConfig}
-            chainId={1}
-          />
-          {/*
-            <Contract
-              name="UNI"
-              customContract={mainnetContracts && mainnetContracts.contracts && mainnetContracts.contracts.UNI}
-              signer={userSigner}
-              provider={mainnetProvider}
-              address={address}
-              blockExplorer="https://etherscan.io/"
-            />
-            */}
         </Route>
         <Route path="/subgraph">
           <Subgraph

@@ -17,10 +17,19 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
   const { deployer } = await getNamedAccounts();
   const chainId = await getChainId();
 
-  await deploy("YourContract", {
+  // Use UTC in the contract
+  const firstBookableTimestamp = Date.now() + 60 * 60 * 1000; // 1 hour from now
+  const lastBookableTimestamp = firstBookableTimestamp + 4 * 60 * 60 * 1000; // 4 hours from the first bookable timestamp
+  const cancellableBefore = 60 * 60 * 1000; // Can cancel booking up to 1 hour before it
+  const durationOfService = 40 * 60 * 1000; // 40 minutes
+  const priceOfService = ethers.utils.parseEther("1.0");
+
+  console.log(firstBookableTimestamp, lastBookableTimestamp, cancellableBefore, durationOfService, priceOfService);
+
+  await deploy("Agenda", {
     // Learn more about args here: https://www.npmjs.com/package/hardhat-deploy#deploymentsdeploy
     from: deployer,
-    // args: [ "Hello", ethers.utils.parseEther("1.5") ],
+    args: [ firstBookableTimestamp, lastBookableTimestamp, priceOfService, durationOfService, cancellableBefore ],
     log: true,
     // waitConfirmations: 5,
   });
@@ -78,4 +87,4 @@ module.exports = async ({ getNamedAccounts, deployments, getChainId }) => {
     console.error("Verification Error =>", error);
   }
 };
-module.exports.tags = ["YourContract"];
+module.exports.tags = ["Agenda"];
